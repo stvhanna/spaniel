@@ -15,9 +15,7 @@ import {
   uuid
 } from './intersection-observer';
 
-import {
-  on
-} from 'ventana';
+import w from './engine/window-proxy';
 
 let emptyRect = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -83,9 +81,18 @@ export class SpanielObserver {
     };
     this.observer = new IntersectionObserver((records: IntersectionObserverEntry[]) => this.internalCallback(records), o);
 
-    on('destroy', this.onWindowClosed.bind(this));
-    on('hide', this.onTabHidden.bind(this));
-    on('show', this.onTabShown.bind(this));
+    if (w.hasDOM) {
+      window.addEventListener('unload', (e: any) => {
+        this.onWindowClosed.call(this);
+      });
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          this.onTabShown.call(this);
+        } else {
+          this.onTabHidden.call(this);
+        }
+      });
+    }
   }
   private onWindowClosed() {
     this.onTabHidden();

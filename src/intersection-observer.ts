@@ -12,7 +12,7 @@ import {
   Stream,
   DOMQueue,
   Terminal
-} from 'ventana';
+} from './engine';
 
 export function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {

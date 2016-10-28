@@ -25,9 +25,6 @@
   "author": {
     "name": "Asa Kusuma"
   },
-  "dependencies": {
-    "ventana": "^0.6.1"
-  },
   "homepage": "https://github.com/linkedin/spaniel",
   "jsnext:main": "exports/es6/spaniel.js",
   "devDependencies": {

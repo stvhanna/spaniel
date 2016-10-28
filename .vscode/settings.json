@@ -1,0 +1,12 @@
+{
+    "files.exclude": {
+        "**/build_tmp": true,
+        "**/exports": true,
+        "**/tmp": true,
+        "**/node_modules": true,
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true
+    }
+}

@@ -113,7 +113,7 @@ There are four different event types passed to the watcher callback:
 
 ## How it works
 
-Under the hood, Spaniel uses [Ventana](https://www.github.com/asakusuma/ventana/), a `requestAnmiationFrame`-based stream and window utility. Spaniel does not use mutation observers, scroll listeners, or resize listeners. Instead, `requestAnmiationFrame` polling is used for performance reasons.
+Under the hood, Spaniel uses `requestAnmiationFrame`-based streams and window utility. Spaniel does not use mutation observers, scroll listeners, or resize listeners. Instead, `requestAnmiationFrame` polling is used for performance reasons.
 
 #### How is it tested?
 
