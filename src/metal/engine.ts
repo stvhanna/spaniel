@@ -27,18 +27,20 @@ export class Engine implements EngineInterface {
   private run() {
     if (!this.running) {
       this.running = true;
-      W.rAF(() => {
-        this.running = false;
-        for (let i = 0, rlen = this.reads.length; i < rlen; i++) {
-          this.reads.pop()();
-        }
-        for (let i = 0, wlen = this.work.length; i < wlen; i++) {
-          this.work.pop()();
-        }
-        if (this.work.length > 0 || this.reads.length > 0) {
-          this.run();
-        }
-      });
+      setTimeout(() => {
+        W.rAF(() => {
+          this.running = false;
+          for (let i = 0, rlen = this.reads.length; i < rlen; i++) {
+            this.reads.pop()();
+          }
+          for (let i = 0, wlen = this.work.length; i < wlen; i++) {
+            this.work.pop()();
+          }
+          if (this.work.length > 0 || this.reads.length > 0) {
+            this.run();
+          }
+        });
+      }, 10);
     }
   }
 }
