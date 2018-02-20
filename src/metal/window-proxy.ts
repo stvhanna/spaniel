@@ -12,7 +12,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // detect the presence of DOM
 import {
   MetaInterface,
-  OnWindowIsDirtyInterface
+  IsDirtyCallbackInterface
 } from './interfaces';
 
 const nop = () => 0;
@@ -24,10 +24,14 @@ interface WindowProxy {
   getScrollLeft: Function;
   getHeight: Function;
   getWidth: Function;
+  bindRootScrollEvent: Function;
   rAF: Function;
   meta: MetaInterface;
-  onWindowIsDirtyListeners: OnWindowIsDirtyInterface[];
-  __destroy__: Function;
+  onWindowIsDirtyListeners: IsDirtyCallbackInterface[];
+  rootsList: any;
+  callIsDirtyListeners: Function;
+  disconnectAll: Function;
+  disconnectIsDirtyListener: Function;
 }
 
 const hasDOM = !!((typeof window !== 'undefined') && window && (typeof document !== 'undefined') && document);
@@ -43,19 +47,35 @@ let W: WindowProxy = {
   getScrollLeft: nop,
   getHeight: nop,
   getWidth: nop,
+  rootsList: [],
   onWindowIsDirtyListeners: [],
   rAF: hasRAF ? window.requestAnimationFrame.bind(window) : (callback: Function) => { callback(); },
+  bindRootScrollEvent: (root: Element) => { root.addEventListener('scroll', () => W.callIsDirtyListeners(), false); },
+  callIsDirtyListeners() {
+    if (this.onWindowIsDirtyListeners.length <= 0) { return; }
+
+    this.onWindowIsDirtyListeners.forEach((obj: any) => {
+      let { fn, scope } = obj;
+      fn.call(scope);
+    });
+  },
   meta: {
     width: 0,
     height: 0,
     scrollTop: 0,
     scrollLeft: 0
   },
-  __destroy__() {
+  disconnectIsDirtyListener(id: string) {
+    this.onWindowIsDirtyListeners = this.onWindowIsDirtyListeners.filter((obj: any) => {
+      return obj.id !== id;
+    });
+  },
+  disconnectAll() {
     this.onWindowIsDirtyListeners = [];
-  }
+  },
 };
 
+// Init after DOM Content has loaded
 function hasDomSetup() {
   let se = (<any>document).scrollingElement != null;
   W.getScrollTop = se ? () => (<any>document).scrollingElement.scrollTop : () => (<any>window).scrollY;
@@ -68,37 +88,32 @@ function windowSetDimensionsMeta() {
   W.meta.width = W.getWidth();
 }
 
+// Memoize window meta scroll position
 function windowSetScrollMeta() {
   W.meta.scrollLeft = W.getScrollLeft();
   W.meta.scrollTop = W.getScrollTop();
 }
 
-// Only invalidate window dimensions on resize
-function resizeThrottle() {
-  window.clearTimeout(resizeTimeout);
+// Only invalidate window isDirty on scroll and resize
+function eventThrottle(eventType?: string, root?: Element) {
+  switch (eventType) {
+    case 'resize':
+      window.clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(() => {
+        windowSetDimensionsMeta();
+      }, throttleDelay);
+      break;
+    case 'scroll':
+      window.clearTimeout(scrollTimeout);
+      scrollTimeout = window.setTimeout(() => {
+        windowSetScrollMeta();
+      }, throttleDelay);
+      break;
+    default:
+      break;
+  }
 
-  resizeTimeout = window.setTimeout(() => {
-    windowSetDimensionsMeta();
-  }, throttleDelay);
-
-  W.onWindowIsDirtyListeners.forEach((obj) => {
-    let { fn, scope } = obj;
-    fn.call(scope);
-  });
-}
-
-// Only invalidate window scroll on scroll
-function scrollThrottle() {
-  window.clearTimeout(scrollTimeout);
-
-  scrollTimeout = window.setTimeout(() => {
-    windowSetScrollMeta();
-  }, throttleDelay);
-
-  W.onWindowIsDirtyListeners.forEach((obj) => {
-    let { fn, scope } = obj;
-    fn.call(scope);
-  });
+  W.callIsDirtyListeners();
 }
 
 if (hasDOM) {
@@ -115,8 +130,8 @@ if (hasDOM) {
     (<any>document).addEventListener('DOMContentLoaded', hasDomSetup);
   }
 
-  window.addEventListener('resize', resizeThrottle, false);
-  window.addEventListener('scroll', scrollThrottle, false);
+  window.addEventListener('resize', () => eventThrottle('resize'), false);
+  window.addEventListener('scroll', () => eventThrottle('scroll'), false);
 }
 
 export {

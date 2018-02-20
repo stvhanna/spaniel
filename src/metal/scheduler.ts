@@ -28,10 +28,7 @@ const TOKEN_SEED = 'xxxx'.replace(/[xy]/g, function(c) {
   return v.toString(16);
 });
 let tokenCounter = 0;
-
-function generateRandomToken() {
-  return Math.floor(Math.random() * (9999999 - 0o0)).toString(16);
-}
+let elementSchedulerCounter = 0;
 
 export class Frame implements FrameInterface {
   constructor(
@@ -39,15 +36,37 @@ export class Frame implements FrameInterface {
     public scrollTop: number,
     public scrollLeft: number,
     public width: number,
-    public height: number
+    public height: number,
+    public x: number,
+    public y: number,
+    public top: number,
+    public left: number
   ) {}
-  static generate(): Frame {
+  static generate(root?: Element): Frame {
+    if (root && document.documentElement.contains(root)) {
+      let rootClientRect = getBoundingClientRect(root);
+      return new Frame(
+        Date.now(),
+        root.scrollTop,
+        root.scrollLeft,
+        rootClientRect.width,
+        rootClientRect.height,
+        rootClientRect.x,
+        rootClientRect.y,
+        rootClientRect.top,
+        rootClientRect.left
+      );
+    }
     return new Frame(
       Date.now(),
       W.meta.scrollTop,
       W.meta.scrollLeft,
       W.meta.width,
-      W.meta.height
+      W.meta.height,
+      0,
+      0,
+      0,
+      0
     );
   }
 }
@@ -57,16 +76,22 @@ export function generateToken() {
 }
 
 export abstract class BaseScheduler {
+  protected root: Element;
   protected engine: EngineInterface;
   protected queue: QueueInterface;
   protected isTicking: Boolean = false;
   protected toRemove: Array<string| Element | Function> = [];
+  protected id?: string;
 
-  constructor(customEngine?: EngineInterface) {
+  constructor(customEngine?: EngineInterface, root?: Element) {
     if (customEngine) {
       this.engine = customEngine;
     } else {
       this.engine = getGlobalEngine();
+    }
+
+    if (root) {
+      this.root = root;
     }
   }
   protected abstract applyQueue(frame: Frame): void;
@@ -81,8 +106,7 @@ export abstract class BaseScheduler {
         }
         this.toRemove = [];
       }
-
-      this.applyQueue(Frame.generate());
+      this.applyQueue(Frame.generate(this.root));
       this.engine.scheduleRead(this.tick.bind(this));
     }
   }
@@ -108,7 +132,9 @@ export abstract class BaseScheduler {
   }
   unwatchAll() {
     this.queue.clear();
-    W.__destroy__();
+    if (this.id) {
+      W.disconnectIsDirtyListener(this.id);
+    }
   }
   startTicking() {
     if (!this.isTicking) {
@@ -153,12 +179,12 @@ export class PredicatedScheduler extends Scheduler implements SchedulerInterface
 export class ElementScheduler extends BaseScheduler implements ElementSchedulerInterface {
   protected queue: DOMQueue;
   protected isDirty: boolean = false;
-  protected id: string = '';
 
-  constructor(customEngine?: EngineInterface) {
-    super(customEngine);
+  constructor(customEngine?: EngineInterface, root?: Element) {
+    super(customEngine, root);
     this.queue = new DOMQueue();
-    this.id = generateRandomToken();
+    this.id = 'element-scheduler-' + elementSchedulerCounter++;
+    this.initWindowIsDirtyListeners();
   }
 
   applyQueue(frame: Frame) {
@@ -176,7 +202,6 @@ export class ElementScheduler extends BaseScheduler implements ElementSchedulerI
   }
 
   watch(el: Element, callback: (frame: FrameInterface, id: string, clientRect?: ClientRect | null) => void, id?: string): string {
-    this.initWindowIsDirtyListeners();
     this.startTicking();
     id = id || generateToken();
     let clientRect = null;

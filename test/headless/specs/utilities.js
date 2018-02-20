@@ -21,7 +21,7 @@ const {
 } = constants;
 
 testModule('Window Proxy', class extends TestClass {
-  ['@test destroy works']() {
+  ['@test disconnect all works']() {
     return this.context.evaluate(() => {
       window.watcher = new spaniel.Watcher();
       window.target = document.querySelector('.tracked-item[data-id="6"]');
@@ -30,6 +30,7 @@ testModule('Window Proxy', class extends TestClass {
     .wait(RAF_THRESHOLD * 5)
     .evaluate(() => {
       window.watcher.destroy();
+      spaniel.__w__.disconnectAll();
     })
     .getExecution()
     .evaluate(function() {

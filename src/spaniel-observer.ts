@@ -33,7 +33,6 @@ import {
 import w from './metal/window-proxy';
 
 import {
-  FrameInterface,
   generateToken,
   on,
   off,
@@ -244,8 +243,6 @@ export class SpanielObserver implements SpanielObserverInterface {
       off('unload', this.onWindowClosed);
       off('hide', this.onTabHidden);
       off('show', this.onTabShown);
-
-      w.__destroy__();
     }
   }
   unobserve(element: SpanielTrackedElement) {
