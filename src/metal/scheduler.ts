@@ -14,7 +14,9 @@ import {
   SchedulerInterface,
   ElementSchedulerInterface,
   FrameInterface,
-  QueueInterface
+  QueueInterface,
+  MetaInterface,
+  SpanielClientRectInterface
 } from './interfaces';
 import W from './window-proxy';
 
@@ -29,26 +31,62 @@ const TOKEN_SEED = 'xxxx'.replace(/[xy]/g, function(c) {
 });
 let tokenCounter = 0;
 
-function generateRandomToken() {
-  return Math.floor(Math.random() * (9999999 - 0o0)).toString(16);
-}
-
 export class Frame implements FrameInterface {
   constructor(
     public timestamp: number,
     public scrollTop: number,
     public scrollLeft: number,
     public width: number,
-    public height: number
+    public height: number,
+    public x: number,
+    public y: number,
+    public top: number,
+    public left: number
   ) {}
-  static generate(): Frame {
+  static generate(root: Element | Window = window): Frame {
+    const rootMeta = this.revalidateRootMeta(root);
     return new Frame(
       Date.now(),
-      W.meta.scrollTop,
-      W.meta.scrollLeft,
-      W.meta.width,
-      W.meta.height
+      rootMeta.scrollTop,
+      rootMeta.scrollLeft,
+      rootMeta.width,
+      rootMeta.height,
+      rootMeta.x,
+      rootMeta.y,
+      rootMeta.top,
+      rootMeta.left
     );
+  }
+  static revalidateRootMeta(root: any = window): MetaInterface {
+    let _rootMeta: MetaInterface = {
+      width: 0,
+      height: 0,
+      scrollTop: 0,
+      scrollLeft: 0,
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0
+    };
+
+    if (root === window) {
+      _rootMeta.scrollTop = W.getScrollTop();
+      _rootMeta.scrollLeft = W.getScrollLeft();
+      _rootMeta.width = W.getWidth();
+      _rootMeta.height = W.getHeight();
+    }else if (root) {
+      let _clientRect = getBoundingClientRect(root);
+      _rootMeta.scrollTop = root.scrollTop;
+      _rootMeta.scrollLeft = root.scrollLeft;
+      _rootMeta.width = _clientRect.width;
+      _rootMeta.height = _clientRect.height;
+      _rootMeta.x = _clientRect.x;
+      _rootMeta.y = _clientRect.y;
+      _rootMeta.top = _clientRect.top;
+      _rootMeta.left = _clientRect.left;
+    }
+
+    return _rootMeta;
   }
 }
 
@@ -57,17 +95,21 @@ export function generateToken() {
 }
 
 export abstract class BaseScheduler {
+  protected root: Element | Window;
   protected engine: EngineInterface;
   protected queue: QueueInterface;
   protected isTicking: Boolean = false;
   protected toRemove: Array<string| Element | Function> = [];
+  protected id?: string;
 
-  constructor(customEngine?: EngineInterface) {
+  constructor(customEngine?: EngineInterface, root: Element | Window = window) {
     if (customEngine) {
       this.engine = customEngine;
     } else {
       this.engine = getGlobalEngine();
     }
+
+    this.root = root;
   }
   protected abstract applyQueue(frame: Frame): void;
 
@@ -81,8 +123,7 @@ export abstract class BaseScheduler {
         }
         this.toRemove = [];
       }
-
-      this.applyQueue(Frame.generate());
+      this.applyQueue(Frame.generate(this.root));
       this.engine.scheduleRead(this.tick.bind(this));
     }
   }
@@ -97,7 +138,7 @@ export abstract class BaseScheduler {
     let frame: Frame = null;
     this.engine.scheduleRead(() => {
       clientRect = getBoundingClientRect(el);
-      frame = Frame.generate();
+      frame = Frame.generate(this.root);
     });
     this.engine.scheduleWork(() => {
       callback(clientRect, frame);
@@ -108,13 +149,19 @@ export abstract class BaseScheduler {
   }
   unwatchAll() {
     this.queue.clear();
-    W.__destroy__();
   }
   startTicking() {
     if (!this.isTicking) {
       this.isTicking = true;
       this.engine.scheduleRead(this.tick.bind(this));
     }
+  }
+  forceStateValidation() {
+    ++W.version;
+    W.meta.height = W.getHeight();
+    W.meta.width = W.getWidth();
+    W.meta.scrollLeft = W.getScrollLeft();
+    W.meta.scrollTop = W.getScrollTop();
   }
 }
 
@@ -140,7 +187,7 @@ export class Scheduler extends BaseScheduler implements SchedulerInterface {
 export class PredicatedScheduler extends Scheduler implements SchedulerInterface {
   predicate: (frame: Frame) => Boolean;
   constructor(predicate: (frame: Frame) => Boolean) {
-    super(null);
+    super(null, window);
     this.predicate = predicate;
   }
   applyQueue(frame: Frame) {
@@ -152,13 +199,15 @@ export class PredicatedScheduler extends Scheduler implements SchedulerInterface
 
 export class ElementScheduler extends BaseScheduler implements ElementSchedulerInterface {
   protected queue: DOMQueue;
-  protected isDirty: boolean = false;
-  protected id: string = '';
+  protected lastVersion: number = W.version;
 
-  constructor(customEngine?: EngineInterface) {
-    super(customEngine);
+  constructor(customEngine?: EngineInterface, root?: Element | Window) {
+    super(customEngine, root);
     this.queue = new DOMQueue();
-    this.id = generateRandomToken();
+  }
+
+  get isDirty(): boolean {
+    return W.version !== this.lastVersion;
   }
 
   applyQueue(frame: Frame) {
@@ -172,11 +221,10 @@ export class ElementScheduler extends BaseScheduler implements ElementSchedulerI
       callback(frame, id, clientRect);
     }
 
-    this.isDirty = false;
+    this.lastVersion = W.version;
   }
 
   watch(el: Element, callback: (frame: FrameInterface, id: string, clientRect?: ClientRect | null) => void, id?: string): string {
-    this.initWindowIsDirtyListeners();
     this.startTicking();
     id = id || generateToken();
     let clientRect = null;
@@ -188,14 +236,6 @@ export class ElementScheduler extends BaseScheduler implements ElementSchedulerI
       clientRect
     });
     return id;
-  }
-
-  initWindowIsDirtyListeners() {
-    W.onWindowIsDirtyListeners.push({ fn: this.windowIsDirtyHandler, scope: this, id: this.id });
-  }
-
-  windowIsDirtyHandler() {
-    this.isDirty = true;
   }
 }
 

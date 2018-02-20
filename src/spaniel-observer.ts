@@ -33,7 +33,6 @@ import {
 import w from './metal/window-proxy';
 
 import {
-  FrameInterface,
   generateToken,
   on,
   off,
@@ -48,7 +47,7 @@ export function DOMMarginToRootMargin(d: DOMMargin): DOMString {
 
 export class SpanielObserver implements SpanielObserverInterface {
   callback: (entries: SpanielObserverEntry[]) => void;
-  observer: IntersectionObserver;
+  observer: SpanielIntersectionObserver;
   thresholds: SpanielThreshold[];
   recordStore: { [key: string]: SpanielRecord; };
   queuedEntries: SpanielObserverEntry[];
@@ -244,8 +243,6 @@ export class SpanielObserver implements SpanielObserverInterface {
       off('unload', this.onWindowClosed);
       off('hide', this.onTabHidden);
       off('show', this.onTabShown);
-
-      w.__destroy__();
     }
   }
   unobserve(element: SpanielTrackedElement) {
@@ -277,5 +274,8 @@ export class SpanielObserver implements SpanielObserverInterface {
     };
     this.observer.observe(trackedTarget);
     return id;
+  }
+  forceStateValidation() {
+    this.observer.forceStateValidation();
   }
 }
