@@ -5,7 +5,8 @@ Unless required by applicable law or agreed to in writing, software distribute
 */
 
 import { 
-  assert
+  assert,
+  expect
 } from 'chai';
 
 import {

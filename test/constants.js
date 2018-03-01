@@ -10,6 +10,13 @@ const constants = {
 		WIDTH: 400,
 		HEIGHT: 400
 	},
+	PUPPETEER: {
+		OPTIONS: {
+			headless: false,
+			slowMo: 100,
+			timeout: 10000
+		}
+	},
 	NIGHTMARE: {
 		TIMEOUT: 10,
 		OPTIONS: {

@@ -5,21 +5,26 @@ Unless required by applicable law or agreed to in writing, software  distribut
 */
 
 import { assert } from 'chai';
-import Context from './context';
+// import Context from './context';
+import Context from './puppeteer-context';
 import SpanielContext from './spaniel-context';
 
 // General approach shamelessly stolen and tweaked from
 // https://github.com/emberjs/ember.js/blob/master/packages/ember-glimmer/tests/utils/abstract-test-case.js
 
+
+
+
 export class TestClass {
-  constructor() {
-    this.context = this.generateContext();
+  constructor(page) {
+    this.context = this.generateContext(page);
   }
   teardown() {
+    console.log('TEARDOWN WAS CALLED');
     this.context.close();
   }
-  generateContext() {
-    return new Context();
+  generateContext(page) {
+    return new Context(page);
   }
 }
 
@@ -28,6 +33,19 @@ export class WatcherTestClass extends TestClass {
     return new SpanielContext();
   }
 }
+
+
+/*
+  description: abstraction function that wraps mocha's `describe` and `it` methods.
+  This default function is commonly imported as "testModule".
+  
+  @moduleName: String
+  example: 'Window Proxy'
+
+  @TestModuleClass: Class
+  example: TestClass or WatcherTestClass
+*/
+
 
 export default function(moduleName, TestModuleClass) {
   describe(moduleName, () => {
@@ -41,12 +59,14 @@ export default function(moduleName, TestModuleClass) {
 
     function generateTest(name) {
       if (name.indexOf('@test ') === 0) {
-        it(name.slice(5), () => {
-          let testInstance = new TestModuleClass();
+        it(name.slice(5), async () => {
+          let page = await browser.newPage();          
+          let testInstance = await new TestModuleClass(page);
+
           return testInstance[name].call(testInstance).then(() => {
             testInstance.teardown();
-          });
-        })
+          });  
+        });
       }
     }
   });
