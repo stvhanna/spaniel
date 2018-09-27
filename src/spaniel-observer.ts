@@ -80,7 +80,7 @@ export class SpanielObserver implements SpanielObserverInterface {
     this.onTabShown = this._onTabShown.bind(this);
 
     if (w.hasDOM) {
-      on('unload', this.onWindowClosed);
+      on('beforeunload', this.onWindowClosed);
       on('hide', this.onTabHidden);
       on('show', this.onTabShown);
     }
@@ -121,7 +121,8 @@ export class SpanielObserver implements SpanielObserverInterface {
           time,
           rootBounds,
           intersectionRect,
-          target
+          target,
+          isIntersecting: null
         });
       }
     }
@@ -156,7 +157,8 @@ export class SpanielObserver implements SpanielObserverInterface {
       duration: 0,
       entering: null,
       payload: record.payload,
-      label: state.threshold.label
+      label: state.threshold.label,
+      isIntersecting: null
     };
   }
   private handleRecordExiting(record: SpanielRecord, time: number = Date.now()) {
@@ -171,7 +173,8 @@ export class SpanielObserver implements SpanielObserverInterface {
         boundingClientRect: emptyRect,
         intersectionRect: emptyRect,
         duration: time - state.lastVisible,
-        target: record.target
+        target: record.target,
+        isIntersecting: null
       }, state);
       state.lastSatisfied = false;
       state.visible = false;
@@ -244,7 +247,7 @@ export class SpanielObserver implements SpanielObserverInterface {
   destroy() {
     this.disconnect();
     if (w.hasDOM) {
-      off('unload', this.onWindowClosed);
+      off('beforeunload', this.onWindowClosed);
       off('hide', this.onTabHidden);
       off('show', this.onTabShown);
     }

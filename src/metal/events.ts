@@ -3,7 +3,7 @@ Copyright 2017 LinkedIn Corp. Licensed under the Apache License,
 Version 2.0 (the "License"); you may not use this file except in
 compliance with the License. You may obtain a copy of the License
 at http://www.apache.org/licenses/LICENSE-2.0
- 
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -62,7 +62,7 @@ interface EventStore {
   scroll: RAFEventRecord;
   resize: RAFEventRecord;
   destroy: GenericEventRecord;
-  unload: GenericEventRecord;
+  beforeunload: GenericEventRecord;
   hide: GenericEventRecord;
   show: GenericEventRecord;
   [eventName: string]: EventRecordInterface;
@@ -83,16 +83,16 @@ function getEventStore(): EventStore {
       return height !== frame.height || width !== frame.width;
     }),
     destroy: new GenericEventRecord(),
-    unload: new GenericEventRecord(),
+    beforeunload: new GenericEventRecord(),
     hide: new GenericEventRecord(),
     show: new GenericEventRecord()
   });
 }
 
 if (w.hasDOM) {
-  window.addEventListener('unload', function(e: any) {
+  window.addEventListener('beforeunload', function(e: any) {
     // First fire internal event to fire any observer callbacks
-    trigger('unload');
+    trigger('beforeunload');
 
     // Then fire external event to allow flushing of any beacons
     trigger('destroy');
